@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ravan Dahan</title>
+<meta name="description" content="A Dussehra archery game. Pinch to draw a golden bow and burn Ravan's ten heads of evil. Solo, pass-and-play or online rooms.">
+<link rel="preload" href="rozha-one.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="anek-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="game.css">
+</head>
+<body>
+<canvas id="game" aria-label="Ramlila maidan"></canvas>
+
+<!-- ======================= HUD ======================= -->
+<div class="hud" id="hud" hidden>
+  <div class="hcard left">
+    <div class="avatar" id="avatar">A</div>
+    <div class="who"><span class="hlabel" id="pname">Archer 1</span><span class="big" id="coins"><span class="coin"></span><span id="coinNum">0</span></span></div>
+  </div>
+  <div class="hcard mid">
+    <div class="lvlrow"><span class="envdeva" id="envDeva" lang="hi">संध्या</span><span class="lvlmeta"><span class="lvl" id="lvl">Level 1</span><span class="env" id="envName">Sandhya, dusk</span></span><span class="clock" id="clock">2:00</span></div>
+    <div class="segs" id="segs"><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i></div>
+    <div class="solobar" id="soloBar" hidden><b></b></div>
+    <div class="solo-row" id="soloRow" hidden>
+      <span class="lives" id="lives" aria-label="Lives"></span>
+      <span class="escapes" id="escapes" aria-label="Heads escaped"></span>
+    </div>
+  </div>
+  <div class="hcard right"><span class="hlabel">Heads down</span><span class="big" id="headNum">0</span><span class="chip" id="agniChip" hidden>AGNI ASTRA</span></div>
+</div>
+<div class="liveboard glass" id="liveBoard" hidden></div>
+<div class="tally" id="tally" hidden></div>
+
+<div class="controls" id="controls" hidden>
+  <button class="mini" id="btnPause">Pause<kbd>Esc</kbd></button>
+  <button class="mini" id="btnSkip">Skip turn</button>
+  <button class="mini" id="btnQuit">Quit</button>
+</div>
+
+<div class="cam" id="cam" hidden>
+  <video id="video" playsinline muted></video>
+  <canvas id="camDots"></canvas>
+  <span class="tag" id="camTag"><span id="camState">LOOKING FOR HAND</span><span id="camGap"></span></span>
+</div>
+
+<div class="rotate glass" id="rotateHint" hidden>Turn your phone sideways for a wider maidan</div>
+<div class="hint glass" id="hint" hidden>Raise your hand to aim</div>
+<div class="count" id="count" hidden></div>
+<div id="banners"></div>
+<div class="toast glass" id="toast" hidden></div>
+
+<div class="bubble" id="bubble" hidden>
+  <span class="who2"><b lang="hi">रावण</b><small>Ravan, Dashanan</small></span>
+  <div class="txt" id="bubbleTxt"></div>
+  <div class="btns" id="bubbleBtns"><button class="ghost" id="bubbleSkip">Skip intro</button><button id="bubbleNext">Next</button></div>
+</div>
+<button class="ghost skipbar" id="finaleSkip" hidden>Skip to results</button>
+
+<!-- ======================= menu ======================= -->
+<div class="panel" id="menu">
+  <div class="menu">
+    <div class="intro">
+      <h1><span class="deva" lang="hi">रावण दहन</span><span class="latin">Ravan Dahan</span></h1>
+      <p>Ten heads, ten evils. Draw the golden bow with a pinch and burn them all before Dussehra night ends.</p>
+      <div class="modes" role="tablist" aria-label="Game mode" id="modeTabs">
+        <button role="tab" data-mode="solo"><b>Solo</b><small>Endless, until your last diya goes out</small></button>
+        <button role="tab" data-mode="local"><b>Pass &amp; play</b><small>2 to 5 archers on this device</small></button>
+        <button role="tab" data-mode="online"><b>Online room</b><small>2 to 8 archers, each on their own device</small></button>
+      </div>
+      <div class="links"><button class="link" id="menuRules">How to play</button><button class="link" id="menuBoard">Global ledger</button><button class="link" id="menuCredits">Credits</button></div>
+    </div>
+
+    <div class="sheet setup">
+      <div class="fieldset" id="fSolo">
+        <label class="field"><span class="label">Your name</span><input id="soloName" maxlength="14" autocomplete="nickname" placeholder="Archer"></label>
+      </div>
+
+      <div class="fieldset" id="fLocal" hidden>
+        <div class="row">
+          <span class="label">Archers</span>
+          <div class="stepper"><button class="ghost" id="pMinus" aria-label="One fewer archer">−</button><output id="pCount">2</output><button class="ghost" id="pPlus" aria-label="One more archer">+</button></div>
+        </div>
+        <div class="names" id="names"></div>
+        <label class="field"><span class="label">Level length</span>
+          <select id="levelLen"><option value="30">30 seconds, 2 min turn</option><option value="60">1 minute, 4 min turn</option><option value="120" selected>2 minutes, 8 min turn</option></select>
+        </label>
+      </div>
+
+      <div class="fieldset" id="fOnline" hidden>
+        <label class="field"><span class="label">Your name</span><input id="onName" maxlength="14" autocomplete="nickname" placeholder="Archer"></label>
+        <div class="joinrow">
+          <label class="field"><span class="label">Level length</span>
+            <select id="onLen"><option value="30">30 s, 2 min run</option><option value="60" selected>1 min, 4 min run</option><option value="120">2 min, 8 min run</option></select>
+          </label>
+          <button id="btnCreate">Create room</button>
+        </div>
+        <div class="or">or join one</div>
+        <div class="joinrow">
+          <label class="field"><span class="label">Room code</span><input id="onCode" maxlength="4" autocomplete="off" placeholder="ABCD"></label>
+          <button class="ghost" id="btnJoin">Join room</button>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="field"><span class="label">Play with</span>
+          <div class="seg" id="inputSeg"><button data-input="camera" aria-pressed="true">Camera</button><button data-input="mouse" aria-pressed="false" id="inputMouseBtn">Mouse</button></div>
+        </div>
+        <label class="field"><span class="label">Pinch sensitivity</span>
+          <select id="pinchSens"><option value="precise">Precise</option><option value="normal" selected>Normal</option><option value="relaxed">Relaxed</option></select>
+        </label>
+      </div>
+      <div class="secure" id="secureNote" hidden><b>The camera needs an https link on phones.</b> This page was opened as a local file, so the browser blocks the camera. Open it from your https site to play by hand, or play with touch.</div>
+      <div class="btns" id="startBtns"><button class="wide" id="btnStart">Start run</button></div>
+      <span class="note" id="menuNote">The camera runs on this device. Nothing is uploaded.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= turn, results ======================= -->
+<div class="panel" id="turn" hidden>
+  <div class="sheet">
+    <span class="label" id="tEyebrow">Archer 1 of 5</span>
+    <h2 id="tTitle">Player 1</h2>
+    <span class="sub" id="tSub"></span>
+    <span class="netchip" id="netChip" hidden></span>
+    <div class="evgrid" id="tGrid" hidden></div>
+    <div class="ledger-wrap" id="ledgerWrap"><table id="ledger"></table></div>
+    <div class="btns" id="tBtns"></div>
+  </div>
+</div>
+
+<!-- ======================= online lobby ======================= -->
+<div class="panel" id="lobby" hidden>
+  <div class="sheet" style="width:min(560px,100%)">
+    <span class="label">Share this code with your archers</span>
+    <div class="coderow"><span class="code" id="lobbyCode">----</span><button class="ghost" id="copyLink">Copy invite link</button></div>
+    <span class="sub" id="lobbySub"></span>
+    <ul class="peers" id="peerList"></ul>
+    <span class="note" id="lobbyNote"></span>
+    <div class="btns" id="lobbyBtns"></div>
+  </div>
+</div>
+
+<!-- ======================= dialogs ======================= -->
+<div class="panel" id="dialog" hidden>
+  <div class="sheet" style="width:min(520px,100%)">
+    <span class="label" id="dEyebrow">Paused</span>
+    <h2 id="dTitle">Paused</h2>
+    <p id="dSub"></p>
+    <div class="evgrid" id="dGrid" hidden></div>
+    <div class="btns" id="dBtns"></div>
+  </div>
+</div>
+
+<div class="panel" id="rulesPanel" hidden>
+  <div class="sheet rules" style="width:min(620px,100%)">
+    <h2>How to play</h2>
+    <div class="tabs" role="tablist" id="ruleTabs">
+      <button role="tab" data-mode="solo"><b>Solo</b><small>Endless</small></button>
+      <button role="tab" data-mode="local"><b>Pass &amp; play</b><small>One device</small></button>
+      <button role="tab" data-mode="online"><b>Online room</b><small>Own devices</small></button>
+    </div>
+    <ol id="ruleList"></ol>
+    <p class="every">In every mode, aim with your knuckles, pinch to draw and open your fingers to loose. With a mouse or touch, press and hold, then release.</p>
+    <div class="legend">
+      <div><canvas id="icoHead" width="80" height="80"></canvas><strong>Head</strong><span>1 to 10 gold coins. Farther heads, later levels and hit streaks pay more.</span></div>
+      <div><canvas id="icoCrown" width="80" height="80"></canvas><strong>Crowned</strong><span>Always 10 coins.</span></div>
+      <div><canvas id="icoAgni" width="80" height="80"></canvas><strong>Agni Astra</strong><span>Fire arrows for 6 seconds that burn nearby heads.</span></div>
+      <div><canvas id="icoMaya" width="80" height="80"></canvas><strong>Maya</strong><span>An illusion that flickers violet. Do not shoot it.</span></div>
+    </div>
+    <h3>The ten heads</h3>
+    <div class="evils" id="evilList"></div>
+    <div class="btns"><button id="rulesClose">Got it</button></div>
+  </div>
+</div>
+
+<div class="panel" id="boardPanel" hidden>
+  <div class="sheet boardsheet">
+    <iframe id="boardFrame" title="Ravan Dahan global ledger"></iframe>
+    <div class="row"><span class="note">Live from every device playing Ravan Dahan.</span><div class="btns"><button class="ghost" id="boardOpen">Open full screen</button><button id="boardClose">Back</button></div></div>
+  </div>
+</div>
+
+<div class="panel" id="creditsPanel" hidden>
+  <div class="sheet" style="width:min(580px,100%)">
+    <span class="label">Credits</span>
+    <h2>Ravan Dahan</h2>
+    <dl class="credits" id="creditList"></dl>
+    <div class="btns"><button id="creditsClose">Close</button></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="supabase.js" defer></script>
+<script type="module" src="main.js"></script>
+</body>
+</html>
